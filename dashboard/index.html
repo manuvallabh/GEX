@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>GEX Dashboard</title>
+<style>
+  :root {
+    --bg: #0b0d12;
+    --panel: #11141b;
+    --border: #232733;
+    --text: #e6e8ec;
+    --muted: #8a93a3;
+    --green: #2ecc71;
+    --red: #e74c3c;
+    --amber: #f1c40f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, Segoe UI, Roboto, sans-serif;
+    padding: 24px;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  .sources {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+  .box {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .box-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--red);
+    box-shadow: 0 0 0 rgba(0,0,0,0);
+  }
+  .dot.ok { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .dot.stale { background: var(--amber); }
+  .box-title { font-weight: 600; font-size: 14px; }
+  .box-status { font-size: 12px; color: var(--muted); }
+  .box pre {
+    font-size: 11px;
+    color: var(--muted);
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin: 8px 0 0;
+    max-height: 160px;
+    overflow: auto;
+  }
+  .error { color: var(--red); font-size: 12px; margin-top: 6px; }
+  .footer { color: var(--muted); font-size: 12px; margin-top: 20px; }
+</style>
+</head>
+<body>
+  <h1>SPX / SPY / ES Data Source Health</h1>
+  <div class="sub" id="generated-at">Loading…</div>
+
+  <div class="sources" id="sources"></div>
+
+  <div class="footer">Polls every 5s from the local server. Server polls each source every 15s.</div>
+
+<script>
+const LABELS = {
+  ninjatrader: "NinjaTrader (footprint/levels)",
+  ibkr: "IBKR (SPX/SPY/ES quotes)",
+  unusual_whales: "Unusual Whales (GEX + flow)",
+  yahoo_finance: "Yahoo Finance (free fallback)",
+};
+
+function renderSource(key, src) {
+  const dotClass = src.connected ? "ok" : "";
+  const statusText = src.connected ? "Connected" : "Disconnected";
+  let extra = "";
+  if (key === "ninjatrader" && src.age_seconds != null) {
+    extra = `<div class="box-status">last update ${src.age_seconds.toFixed(0)}s ago</div>`;
+  }
+  const errorHtml = src.error ? `<div class="error">${src.error}</div>` : "";
+  const dataHtml = src.data ? `<pre>${JSON.stringify(src.data, null, 2)}</pre>` : "";
+  return `
+    <div class="box">
+      <div class="box-head">
+        <div class="dot ${dotClass}"></div>
+        <div class="box-title">${LABELS[key] || key}</div>
+      </div>
+      <div class="box-status">${statusText}</div>
+      ${extra}
+      ${errorHtml}
+      ${dataHtml}
+    </div>
+  `;
+}
+
+async function refresh() {
+  try {
+    const res = await fetch("/api/state");
+    const state = await res.json();
+    document.getElementById("generated-at").textContent =
+      state.generated_at ? `Last poll: ${new Date(state.generated_at).toLocaleTimeString()}` : "No data yet";
+    const container = document.getElementById("sources");
+    container.innerHTML = Object.entries(state.sources || {})
+      .map(([key, src]) => renderSource(key, src))
+      .join("");
+  } catch (e) {
+    document.getElementById("generated-at").textContent = "Could not reach local server";
+  }
+}
+
+refresh();
+setInterval(refresh, 5000);
+</script>
+</body>
+</html>
