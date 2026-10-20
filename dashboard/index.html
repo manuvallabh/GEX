@@ -81,8 +81,9 @@ const LABELS = {
 };
 
 function renderSource(key, src) {
-  const dotClass = src.connected ? "ok" : "";
-  const statusText = src.connected ? "Connected" : "Disconnected";
+  const notConfigured = src.configured === false;
+  const dotClass = src.connected ? "ok" : (notConfigured ? "stale" : "");
+  const statusText = src.connected ? "Connected" : (notConfigured ? "Not Configured" : "Disconnected");
   let extra = "";
   if (key === "ninjatrader" && src.age_seconds != null) {
     extra = `<div class="box-status">last update ${src.age_seconds.toFixed(0)}s ago</div>`;

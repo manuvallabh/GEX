@@ -37,6 +37,7 @@ def poll_once() -> dict:
     ninja = ninja_connector.read_levels()
     sources["ninjatrader"] = {
         "connected": ninja.connected,
+        "configured": ninja.last_update is not None,
         "error": ninja.error,
         "age_seconds": ninja.age_seconds,
         "data": ninja.levels,
@@ -47,18 +48,29 @@ def poll_once() -> dict:
         ib = ibkr_connector.IBKRConnector()
         ib_status = ib.status(symbols=("SPX", "SPY", "ES"))
         ib.disconnect()
-        sources["ibkr"] = {"connected": ib_status.connected, "error": ib_status.error, "data": ib_status.quotes}
+        sources["ibkr"] = {
+            "connected": ib_status.connected,
+            "configured": ibkr_connector.HAVE_IB_INSYNC,
+            "error": ib_status.error,
+            "data": ib_status.quotes,
+        }
     except Exception as exc:
-        sources["ibkr"] = {"connected": False, "error": str(exc), "data": {}}
+        sources["ibkr"] = {"connected": False, "configured": ibkr_connector.HAVE_IB_INSYNC, "error": str(exc), "data": {}}
 
     # Unusual Whales
     uw = uw_connector.status(tickers=("SPX",))
-    sources["unusual_whales"] = {"connected": uw.connected, "error": uw.error, "data": uw.gex}
+    sources["unusual_whales"] = {
+        "connected": uw.connected,
+        "configured": uw.configured,
+        "error": uw.error,
+        "data": uw.gex,
+    }
 
     # Free fallback: Yahoo Finance
     yprices = yahoo_connector.get_prices()
     sources["yahoo_finance"] = {
         "connected": yprices.connected,
+        "configured": yahoo_connector.HAVE_YFINANCE,
         "error": yprices.error,
         "data": yprices.prices,
     }
